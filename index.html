@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>30分钟好运挑战 ✨（Firebase 实时版）</title>
+  <style>
+    :root{ --pink:#ffb4c8; --blue:#8ec8ff; --btn:#ff7f50; --btn2:#ff6b6b; --card:#ffffff; --text:#222; --muted:#666; }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{ margin:0; font-family: ui-rounded,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
+      color:var(--text); background:linear-gradient(135deg,var(--pink),var(--blue));
+      display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .stars{position:fixed; inset:0; z-index:-1; pointer-events:none}
+    .star{position:absolute; width:3px; height:3px; background:#fff; border-radius:50%; opacity:.8; animation:float 10s linear infinite}
+    @keyframes float{0%{transform:translateY(0) scale(.6);opacity:.4}50%{transform:translateY(-30px) scale(1);opacity:.9}100%{transform:translateY(0) scale(.6);opacity:.4}}
+    .app{ position:relative; z-index:1; width:min(720px,92vw); background:rgba(255,255,255,.18); backdrop-filter:blur(8px);
+      border-radius:28px; padding:22px 18px; box-shadow:0 10px 30px rgba(0,0,0,.15); }
+    .brand{ text-align:center; color:#fff; font-weight:800; letter-spacing:.5px; margin:4px 0 14px; font-size:clamp(20px,4vw,28px) }
+    .page{display:none} .page.active{display:block; animation:fad .28s ease}
+    @keyframes fad{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+    .grid{display:grid; gap:12px; grid-template-columns:1fr 1fr}
+    .btn{ appearance:none; border:0; background:var(--btn); color:#fff; font-weight:700; padding:16px 14px; border-radius:20px;
+      box-shadow:0 6px 14px rgba(0,0,0,.15); cursor:pointer; transition:transform .08s ease, filter .08s ease; width:100%; }
+    .btn:active{transform:translateY(1px)} .btn.alt{background:var(--btn2)} .btn.ghost{background:#fff; color:#333} .btn.full{grid-column:1/-1}
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 14px}
+    .input,textarea{ width:100%; padding:12px 14px; border-radius:16px; border:none; outline:none; background:#fff;
+      box-shadow:inset 0 0 0 2px rgba(0,0,0,.05); font-size:16px; }
+    textarea{min-height:96px; resize:vertical}
+    .card{ background:var(--card); border-radius:18px; padding:14px 12px; box-shadow:0 4px 10px rgba(0,0,0,.08); margin:10px 0; }
+    .row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .meta{color:var(--muted); font-size:13px}
+    .likes{display:flex; align-items:center; gap:6px}
+    .stat{text-align:center; color:#fff; font-weight:700; margin-bottom:10px}
+    .timer{display:inline-block; padding:.4rem .8rem; background:#00000033; color:#fff; border-radius:999px; font-weight:800}
+    .empty{color:#fff; text-align:center; opacity:.9}
+    .toast{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#111; color:#fff; padding:8px 12px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none}
+  </style>
+</head>
+<body>
+  <!-- 背景星星 -->
+  <div class="stars" aria-hidden="true"></div>
+
+  <main class="app" role="application">
+    <div class="brand">30分钟好运挑战 ✨</div>
+
+    <!-- 主页面 -->
+    <section id="home" class="page active" aria-labelledby="home-title">
+      <h2 id="home-title" class="stat">准备好收集你的好运了吗？</h2>
+      <div class="grid">
+        <button type="button" class="btn full" onclick="nav('write')">▶️ 开始挑战</button>
+        <button type="button" class="btn" onclick="nav('feed')">💬 好运墙</button>
+        <button type="button" class="btn" onclick="nav('rank')">🏆 排行榜</button>
+        <button type="button" class="btn full alt" onclick="nav('how')">ℹ️ 怎么玩？</button>
+      </div>
+    </section>
+
+    <!-- 写好运页 -->
+    <section id="write" class="page" aria-labelledby="write-title">
+      <div class="row" style="margin-bottom:10px">
+        <h2 id="write-title" class="stat" style="margin:0">⏳ <span class="timer" id="timer">30:00</span></h2>
+        <button type="button" class="btn" onclick="startTimer()">🕒 开始倒计时</button>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <input id="nick" class="input" placeholder="填个昵称（必填）" />
+        </div>
+        <textarea id="text" placeholder="我看到的好事是..."></textarea>
+        <div class="toolbar">
+          <button type="button" class="btn" onclick="addLuck()">✨ 写下好运（上传到云端）</button>
+          <button type="button" class="btn alt" onclick="nav('home')">🔙 回主页面</button>
+        </div>
+        <div class="meta">你已经写了 <b id="mineCount">0</b> 条好运 🌈</div>
+      </div>
+
+      <div id="mineList"></div>
+    </section>
+
+    <!-- 好运墙 -->
+    <section id="feed" class="page" aria-labelledby="feed-title">
+      <h2 id="feed-title" class="stat">目前共有 <span id="feedTotal">0</span> 条好运 ✨</h2>
+      <div id="feedList"></div>
+      <div class="toolbar">
+        <button type="button" class="btn alt" onclick="nav('home')">🔙 回主页面</button>
+      </div>
+    </section>
+
+    <!-- 排行榜 -->
+    <section id="rank" class="page" aria-labelledby="rank-title">
+      <h2 id="rank-title" class="stat">本次挑战 · 荣誉榜</h2>
+      <div id="rankList" class="card"></div>
+      <div class="toolbar">
+        <button type="button" class="btn alt" onclick="nav('home')">🔙 回主页面</button>
+      </div>
+    </section>
+
+    <!-- 说明页 -->
+    <section id="how" class="page" aria-labelledby="how-title">
+      <div class="card">
+        <h3 id="how-title">怎么玩？</h3>
+        <p>在30分钟内写下你看到的所有好事。每写一条，就更靠近幸运！你也可以给别人写的好运点赞 💖（所有数据实时同步）</p>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="btn alt" onclick="nav('home')">🔙 回主页面</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Firebase CDN（Compat 版） -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    /* === 你的 Firebase 配置（来自你提供的项目信息；已补充 databaseURL） === */
+    const firebaseConfig = {
+      apiKey: "AIzaSyA4CheNGxYJnn9q2HzcrV4MU0h1d9nSVeM",
+      authDomain: "goodluck1314-bb364.firebaseapp.com",
+      databaseURL: "https://goodluck1314-bb364-default-rtdb.firebaseio.com",
+      projectId: "goodluck1314-bb364",
+      storageBucket: "goodluck1314-bb364.firebasestorage.app",
+      messagingSenderId: "786667392503",
+      appId: "1:786667392503:web:e5893642e903e66d9632f2",
+      measurementId: "G-K5MMDJSM6V"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+  </script>
+
+  <script>
+    /** ================== 基础 UI 状态 ================== **/
+    const pages = ["home","write","feed","rank","how"];
+    let ticking=false, left=30*60, timerId=null;
+    const state = {
+      nick: localStorage.getItem("luck_nick") || "",
+      lucks: new Map() // id -> {id,nick,text,likes,createdAt}
+    };
+    const qs = id => document.getElementById(id);
+    const toast = (msg)=>{ const t=qs("toast"); t.textContent=msg; t.style.opacity=1; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity=0,1400); };
+
+    function nav(id){
+      pages.forEach(p => qs(p).classList.remove("active"));
+      qs(id).classList.add("active");
+      if(id==="feed") renderFeed();
+      if(id==="rank") renderRank();
+    }
+
+    // 初始化昵称
+    qs("nick").value = state.nick;
+    qs("nick").addEventListener("change", e=>{
+      state.nick = e.target.value.trim();
+      localStorage.setItem("luck_nick", state.nick);
+      renderMine();
+    });
+
+    /** ================== 倒计时 ================== **/
+    const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+    function tick(){ if(!ticking) return; if(left<=0){ ticking=false; clearInterval(timerId); alert("时间到！去看看好运墙吧～"); return;} left--; qs("timer").textContent = fmt(left); }
+    function startTimer(){ if(ticking) return; ticking=true; if(left<=0) left=30*60; qs("timer").textContent=fmt(left); timerId=setInterval(tick,1000); }
+
+    /** ================== 写好运 -> Firebase ================== **/
+    function addLuck(){
+      const nick = (qs("nick").value||"").trim();
+      const text = (qs("text").value||"").trim();
+      if(!nick){ alert("请先填写昵称～"); qs("nick").focus(); return; }
+      if(!text){ alert("请先写点好运内容～"); qs("text").focus(); return; }
+
+      state.nick = nick; localStorage.setItem("luck_nick", nick);
+      const data = { nick, text, likes: 0, createdAt: Date.now() };
+
+      // push 写入；失败会提示错误
+      db.ref("lucks").push(data).then(()=>{
+        qs("text").value = "";
+        toast("已提交 ✅");
+        renderMine(); // 本地过滤我的列表
+      }).catch(err=>{
+        console.error("写入失败：", err);
+        alert("提交失败：请检查网络、databaseURL 或数据库规则。");
+      });
+    }
+
+    /** ================== 实时订阅（更稳：child_added / child_changed） ================== **/
+    const ref = db.ref("lucks");
+
+    // 新增
+    ref.on("child_added", snap=>{
+      const v = snap.val() || {};
+      state.lucks.set(snap.key, { id:snap.key, ...v });
+      qs("feedTotal").textContent = state.lucks.size;
+      if(qs("feed").classList.contains("active")) renderFeed();
+      renderMine();
+      if(qs("rank").classList.contains("active")) renderRank();
+    });
+
+    // 变更（点赞等）
+    ref.on("child_changed", snap=>{
+      const v = snap.val() || {};
+      state.lucks.set(snap.key, { id:snap.key, ...v });
+      const likeEl = qs(`likes-${snap.key}`);
+      if(likeEl){ likeEl.textContent = v.likes||0; likeEl.animate([{transform:"scale(1)"},{transform:"scale(1.2)"},{transform:"scale(1)"}],{duration:220}); }
+      if(qs("rank").classList.contains("active")) renderRank();
+    });
+
+    // （可选）删除
+    ref.on("child_removed", snap=>{
+      state.lucks.delete(snap.key);
+      qs("feedTotal").textContent = state.lucks.size;
+      if(qs("feed").classList.contains("active")) renderFeed();
+      renderMine();
+      if(qs("rank").classList.contains("active")) renderRank();
+    });
+
+    /** ================== 点赞（事务，避免并发覆盖） ================== **/
+    const likeCooldown = new Set();
+    function like(id){
+      if(likeCooldown.has(id)) return;
+      likeCooldown.add(id);
+      db.ref(`lucks/${id}/likes`).transaction(cur => (cur||0)+1, (err, committed)=>{
+        setTimeout(()=>likeCooldown.delete(id), 400);
+        if(err){ console.error(err); toast("点赞失败 ❌"); }
+        else if(committed){ /* 成功后会触发 child_changed 自动更新 */ }
+      });
+    }
+
+    /** ================== 渲染：我的列表 ================== **/
+    function renderMine(){
+      const mine = [...state.lucks.values()].filter(l => l.nick === state.nick);
+      qs("mineCount").textContent = mine.length;
+      const wrap = qs("mineList"); wrap.innerHTML = "";
+      if(mine.length===0){ wrap.innerHTML = `<div class="empty">还没有写记录～ 开始写下第一条好运吧！</div>`; return; }
+      mine.sort((a,b)=>b.createdAt-a.createdAt).forEach(l=>{
+        const div=document.createElement("div"); div.className="card";
+        div.innerHTML = `
+          <div class="row">
+            <div>
+              <div><b>${esc(l.nick)}</b> ：${esc(l.text)}</div>
+              <div class="meta">💖 已保存</div>
+            </div>
+            <div class="likes"><span>❤️</span><span>${l.likes||0}</span></div>
+          </div>`;
+        wrap.appendChild(div);
+      });
+    }
+
+    /** ================== 渲染：好运墙 ================== **/
+    function renderFeed(){
+      const wrap = qs("feedList"); wrap.innerHTML = "";
+      const list = [...state.lucks.values()].sort((a,b)=>b.createdAt-a.createdAt);
+      if(list.length===0){ wrap.innerHTML = `<div class="card meta">大家还没开始写～ 你来当第一位发起者吧！</div>`; return; }
+      list.forEach(l=>{
+        const div=document.createElement("div"); div.className="card";
+        div.innerHTML = `
+          <div class="row">
+            <div>
+              <div>💬 ${esc(l.text)}</div>
+              <div class="meta">🧍 来自：${esc(l.nick)}</div>
+            </div>
+            <div class="likes">
+              <button type="button" class="btn ghost" style="padding:8px 10px; border-radius:999px" onclick="like('${l.id}')">点赞 💖</button>
+              <span id="likes-${l.id}" aria-live="polite">${l.likes||0}</span>
+            </div>
+          </div>`;
+        wrap.appendChild(div);
+      });
+    }
+
+    /** ================== 渲染：排行榜（按“写的条数”） ================== **/
+    function renderRank(){
+      const map=new Map();
+      state.lucks.forEach(l => map.set(l.nick,(map.get(l.nick)||0)+1));
+      const arr=[...map.entries()].map(([nick,count])=>({nick,count})).sort((a,b)=>b.count-a.count);
+      const titleOf=i=> (["好运女神","笑容达人","幸运星","阳光使者","能量补给站"][i] || "活力满满");
+      const wrap=qs("rankList"); wrap.innerHTML="";
+      if(arr.length===0){ wrap.innerHTML=`<div class="meta">还没有数据～ 去“写好运”页面开始吧！</div>`; return; }
+      arr.forEach((u,i)=>{
+        const row=document.createElement("div"); row.className="row"; row.style.margin="8px 0";
+        row.innerHTML = `<div><b>${i+1}️⃣ ${esc(u.nick)}</b></div><div class="meta">写了 <b>${u.count}</b> 条｜称号：${titleOf(i)}</div>`;
+        wrap.appendChild(row);
+      });
+    }
+
+    /** ================== 小工具 ================== **/
+    const esc = s => String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+    (function initStars(){
+      const box=document.querySelector(".stars");
+      for(let i=0;i<80;i++){
+        const st=document.createElement("div"); st.className="star";
+        st.style.top=(Math.random()*100)+"%"; st.style.left=(Math.random()*100)+"%";
+        st.style.animationDuration=(6+Math.random()*8)+"s"; st.style.opacity=(0.4+Math.random()*0.6).toFixed(2);
+        box.appendChild(st);
+      }
+    })();
+  </script>
+</body>
+</html>
