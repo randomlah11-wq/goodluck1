@@ -34,7 +34,18 @@
     .timer{display:inline-block; padding:.4rem .8rem; background:#00000033; color:#fff; border-radius:999px; font-weight:800}
     .empty{color:#fff; text-align:center; opacity:.9}
     .toast{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#111; color:#fff; padding:8px 12px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none}
-  </style>
+  
+/* 好运墙可滚容器（新增） */
+.feedWrap{
+  max-height: 62vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scroll-behavior: smooth;
+}
+.feedWrap::-webkit-scrollbar{ width:8px }
+.feedWrap::-webkit-scrollbar-thumb{ background:#00000033; border-radius:999px }
+</style>
 </head>
 <body>
   <!-- 背景星星 -->
@@ -79,8 +90,12 @@
     <!-- 好运墙 -->
     <section id="feed" class="page" aria-labelledby="feed-title">
       <h2 id="feed-title" class="stat">目前共有 <span id="feedTotal">0</span> 条好运 ✨</h2>
-      <div id="feedList"></div>
-      <div class="toolbar">
+      <div class="feedWrap" id="feedWrap">
+<div id="feedList"></div>
+</div>
+      <div class="toolbar"><button type="button" class="btn ghost" onclick="scrollFeedTop()">⬆️ 回到顶部</button>
+<button type="button" class="btn ghost" onclick="scrollFeedBottom()">⬇️ 去到底部</button>
+
         <button type="button" class="btn alt" onclick="nav('home')">🔙 回主页面</button>
       </div>
     </section>
@@ -291,6 +306,16 @@
         box.appendChild(st);
       }
     })();
-  </script>
+  
+/* 好运墙滚动辅助（新增） */
+function scrollFeedTop(){
+  const wrap = document.getElementById('feedWrap');
+  if(wrap) wrap.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function scrollFeedBottom(){
+  const wrap = document.getElementById('feedWrap');
+  if(wrap) wrap.scrollTo({ top: wrap.scrollHeight, behavior: 'smooth' });
+}
+</script>
 </body>
 </html>
